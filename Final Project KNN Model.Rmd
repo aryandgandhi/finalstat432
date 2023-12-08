@@ -1,0 +1,81 @@
+---
+title: "Final Project KNN Regression"
+output: html_document
+date: "2023-12-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(caret)
+library(readr)
+
+# Assuming that the CSV files are in your working directory
+# Load the data
+data <- read_csv("processed_data.csv")
+labels <- read_csv("train_scores.csv")
+
+# Merge the datasets on 'id' and prepare the data
+data_merged <- merge(data, labels, by = 'id')
+set.seed(123) # Setting a seed for reproducibility
+
+# Split the data into features and labels
+features <- data_merged[, !(names(data_merged) %in% c('id', 'score'))]
+labels <- data_merged$score
+
+# Create training (80%) and testing (20%) datasets
+index <- createDataPartition(labels, p = 0.8, list = FALSE)
+train_data <- data_merged[index, ]
+test_data <- data_merged[-index, ]
+
+# Pre-process the data: center and scale the predictors
+preProc <- preProcess(train_data[, !(names(train_data) %in% 'score')], method=c("center", "scale"))
+
+train_data_processed <- predict(preProc, train_data)
+test_data_processed <- predict(preProc, test_data)
+
+# Define the control using a 10-fold cross-validation
+trControl <- trainControl(method = "cv", number = 10)
+
+# Tune the k parameter. This can take some time to run.
+grid <- expand.grid(k = seq(1, 20, by = 1)) # Trying k from 1 to 20
+
+# Train the model
+set.seed(123)
+knn_fit <- train(score ~ ., data = train_data_processed, method = "knn",
+                 tuneGrid = grid, trControl = trControl)
+
+# Summarize the results
+print(knn_fit)
+
+# Predict on test data
+predictions <- predict(knn_fit, newdata = test_data_processed)
+
+# Evaluate the model
+postResample(pred = predictions, obs = test_data_processed$score)
+
+# Plotting model performance
+plot(knn_fit)
+```
+
